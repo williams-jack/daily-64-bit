@@ -1,10 +1,11 @@
+import { Container } from '@chakra-ui/react';
 import React from 'react';
 
 function App() {
   return (
-    <div className="App">
-      Hello World!    
-    </div>
+    <Container>
+      Hello
+    </Container>   
   );
 }
 
