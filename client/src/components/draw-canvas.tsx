@@ -1,4 +1,4 @@
-import { Box, FormLabel, HStack, Input } from '@chakra-ui/react';
+import { Box, Flex, FormLabel, HStack, Input } from '@chakra-ui/react';
 import React from 'react';
 import { createRef } from 'react';
 import { useState } from 'react';
@@ -6,8 +6,9 @@ import { useEffect } from 'react';
 import { FC } from 'react';
 import { PaintToolsProps } from '../types/paint-tools-types';
 
-const NUMBER_OF_PIXELS = 32;
-const CANVAS_SIZE = 500;
+const NUMBER_OF_PIXELS = 16;
+const CANVAS_SIZE = 400;
+const PIXEL_SIZE = CANVAS_SIZE / NUMBER_OF_PIXELS;
 
 const PaintTools: FC<PaintToolsProps> = ({ setColor, color }) => {
   const colorInputRef: React.RefObject<HTMLInputElement> = createRef();
@@ -45,6 +46,7 @@ const PaintTools: FC<PaintToolsProps> = ({ setColor, color }) => {
   );
 };
 
+// TODO: Refactor mouse down logic. Should be able to click on a pixel.
 const DrawCanvas: FC = () => {
   const [color, setColor] = useState('#000');
   const [mouseIsDown, setMouseIsDown] = useState(false);
@@ -52,30 +54,50 @@ const DrawCanvas: FC = () => {
 
   useEffect(() => {
     const canvasContext: CanvasRenderingContext2D | null | undefined =
-      canvasRef.current?.getContext('2d');
-    const offset: number = CANVAS_SIZE / NUMBER_OF_PIXELS;
-    let currentXPosition: number = 0;
-    let currentYPosition: number = 0;
-    // Draw horizontal lines.
-    for (let i: number = 1; i <= NUMBER_OF_PIXELS; ++i) {
-      currentXPosition = offset * i;
-      canvasContext?.moveTo(currentXPosition, CANVAS_SIZE);
-      canvasContext?.lineTo(currentXPosition, 0);
-      canvasContext?.stroke();
-    }
-    for (let i: number = 1; i <= NUMBER_OF_PIXELS; ++i) {
-      currentYPosition = offset * i;
-      canvasContext?.moveTo(CANVAS_SIZE, currentYPosition);
-      canvasContext?.lineTo(0, currentYPosition);
-      canvasContext?.stroke();
+      canvasRef?.current?.getContext('2d');
+    if (!canvasContext) return;
+    canvasContext.strokeStyle = '#111';
+    // Draw grid lines.
+    // TODO: Switch to use a provided canvas height and width (i.e., no assumption)
+    // of square canvas.
+    for (let i = 0; i < NUMBER_OF_PIXELS; ++i) {
+      // Draw horizontal line.
+      const xPos: number = Math.floor((i * CANVAS_SIZE) / NUMBER_OF_PIXELS);
+      canvasContext.beginPath();
+      canvasContext.moveTo(xPos, 0);
+      canvasContext.lineTo(xPos, CANVAS_SIZE);
+      canvasContext.stroke();
+
+      // Draw vertical line.
+      const yPos: number = Math.floor((i * CANVAS_SIZE) / NUMBER_OF_PIXELS);
+      canvasContext.beginPath();
+      canvasContext.moveTo(0, yPos);
+      canvasContext.lineTo(CANVAS_SIZE, yPos);
+      canvasContext.stroke();
     }
   }, [canvasRef]);
 
   const drawOnPixel = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (mouseIsDown) {
+    if (!canvasRef || !canvasRef.current) return;
+    const canvasContext: CanvasRenderingContext2D | null =
+      canvasRef.current.getContext('2d');
+    if (mouseIsDown && canvasContext) {
       const canvasPositionX: number = e.clientX - e.currentTarget.offsetLeft;
       const canvasPositionY: number = e.clientY - e.currentTarget.offsetTop;
-      console.log(`Pos X: ${canvasPositionX} PosY: ${canvasPositionY}`);
+      const [pixelX, pixelY] = [
+        Math.floor(canvasPositionX / PIXEL_SIZE),
+        Math.floor(canvasPositionY / PIXEL_SIZE),
+      ];
+
+      console.log(`${pixelX}, ${pixelY}`);
+
+      canvasContext.fillStyle = color;
+      canvasContext.fillRect(
+        pixelX * PIXEL_SIZE,
+        pixelY * PIXEL_SIZE,
+        PIXEL_SIZE - 1,
+        PIXEL_SIZE - 1
+      );
     }
   };
 
@@ -101,18 +123,20 @@ const DrawCanvas: FC = () => {
   return (
     <>
       <PaintTools color={color} setColor={setColor} />
-      <canvas
-        width={`${CANVAS_SIZE}vw`}
-        height={`${CANVAS_SIZE}vw`}
-        style={{
-          background: '#ccc',
-          border: 'solid blue 2px',
-        }}
-        ref={canvasRef}
-        onMouseDown={onBeginDraw}
-        onMouseUp={onFinishDraw}
-        onMouseMove={onDraw}
-      ></canvas>
+      <Flex justifyContent={'center'}>
+        <canvas
+          width={`${CANVAS_SIZE}vw`}
+          height={`${CANVAS_SIZE}vw`}
+          style={{
+            background: '#ccc',
+            border: 'solid black 2px',
+          }}
+          ref={canvasRef}
+          onMouseDown={onBeginDraw}
+          onMouseUp={onFinishDraw}
+          onMouseMove={onDraw}
+        ></canvas>
+      </Flex>
     </>
   );
 };
